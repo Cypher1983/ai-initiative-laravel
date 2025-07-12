@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 Route::get('/', function () {
     return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->name('dashboard');
 
 Route::get('/welcome', function () {
     return Inertia::render('Welcome', [
@@ -48,7 +48,6 @@ Route::post('/api/llm/message', function (Request $request) {
     } catch (\Exception $e) {
         return response()->json(['error' => 'LLM request error: ' . $e->getMessage()], 500);
     }
-})->middleware(['auth']);
-
+});
 
 require __DIR__.'/auth.php';

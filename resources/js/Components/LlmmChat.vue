@@ -120,8 +120,12 @@
       messages.value[messages.value.length - 1] = { role: 'assistant', content: data.response, loading: false }
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        // User is not authenticated, redirect to login
-        window.location.href = '/login'
+        // User is not authenticated, show a message about logging in
+        messages.value[messages.value.length - 1] = {
+          role: 'assistant',
+          content: '⚠️ ' + error.response.data.message,
+          loading: false
+        }
         return
       }
       

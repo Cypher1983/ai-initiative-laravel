@@ -20,15 +20,18 @@ const closeUserDropdown = () => {
   userDropdownOpen.value = false
 }
 
-const toggleDarkMode = () => {
-  isDarkMode.value = !isDarkMode.value
-  if (isDarkMode.value) {
+const applyDarkMode = (darkMode) => {
+  if (darkMode) {
     document.documentElement.classList.add('dark')
-    localStorage.setItem('darkMode', 'true')
   } else {
     document.documentElement.classList.remove('dark')
-    localStorage.setItem('darkMode', 'false')
   }
+}
+
+const toggleDarkMode = () => {
+  isDarkMode.value = !isDarkMode.value
+  applyDarkMode(isDarkMode.value)
+  localStorage.setItem('darkMode', isDarkMode.value.toString())
 }
 
 const toggleSidebar = () => {
@@ -37,11 +40,14 @@ const toggleSidebar = () => {
 }
 
 onMounted(() => {
-  // Check for saved dark mode preference
+  // Check for saved dark mode preference and apply immediately
   const savedDarkMode = localStorage.getItem('darkMode')
   if (savedDarkMode === 'true' || (!savedDarkMode && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     isDarkMode.value = true
-    document.documentElement.classList.add('dark')
+    applyDarkMode(true)
+  } else {
+    isDarkMode.value = false
+    applyDarkMode(false)
   }
 
   // Check for saved sidebar collapsed preference
@@ -61,8 +67,8 @@ onMounted(() => {
 
 <template>
   <div class="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-    <!-- Sidebar -->
-    <aside :class="[
+    <!-- Sidebar - Only show when authenticated -->
+    <aside v-if="$page.props.auth.user" :class="[
       'hidden md:flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300',
       sidebarCollapsed ? 'w-16' : 'w-64'
     ]">
@@ -95,36 +101,48 @@ onMounted(() => {
 
     <!-- Main Area -->
     <div class="flex-1 flex flex-col overflow-hidden relative">
-      <!-- Mobile Menu Button - Absolute Positioned -->
-      <button @click="mobileSidebarOpen = !mobileSidebarOpen" class="absolute top-4 left-4 z-50 md:hidden bg-white dark:bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+      <!-- Mobile Menu Button - Only show when authenticated -->
+      <button v-if="$page.props.auth.user" @click="mobileSidebarOpen = !mobileSidebarOpen" class="absolute top-4 left-4 z-50 md:hidden bg-white dark:bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
         ☰
       </button>
 
-      <!-- User Avatar Dropdown - Absolute Positioned -->
+      <!-- User Avatar Dropdown or Login Button - Absolute Positioned -->
       <div class="absolute top-4 right-4 z-50" data-dropdown>
-        <button @click="toggleUserDropdown" class="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
-          <div class="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center shadow-lg">
-            <font-awesome-icon :icon="['fas', 'user']" class="text-gray-600 dark:text-gray-400 text-sm" />
-          </div>
-        </button>
+        <!-- Show login button for unauthenticated users -->
+        <Link 
+          v-if="!$page.props.auth.user" 
+          href="/login" 
+          class="inline-flex items-center rounded-md border border-gray-800 dark:border-white bg-transparent dark:bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-800 dark:text-white transition duration-150 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:bg-gray-200 dark:active:bg-gray-900"
+        >
+          <span class="text-sm font-medium">Login</span>
+        </Link>
         
-        <!-- Dropdown Menu -->
-        <div v-if="userDropdownOpen" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50">
-          <Link href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-            Profile
-          </Link>
-          <hr class="my-1 border-gray-200 dark:border-gray-600">
-          <button @click="toggleDarkMode" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-            <span class="flex items-center">
-              <font-awesome-icon :icon="['fas', isDarkMode ? 'sun' : 'moon']" class="mr-2" />
-              {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
-            </span>
+        <!-- Show user avatar dropdown for authenticated users -->
+        <template v-else>
+          <button @click="toggleUserDropdown" class="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
+            <div class="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center shadow-lg">
+              <font-awesome-icon :icon="['fas', 'user']" class="text-gray-600 dark:text-gray-400 text-sm" />
+            </div>
           </button>
-          <hr class="my-1 border-gray-200 dark:border-gray-600">
-          <button @click="logout" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-            Logout
-          </button>
-        </div>
+          
+          <!-- Dropdown Menu -->
+          <div v-if="userDropdownOpen" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50">
+            <Link href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+              Profile
+            </Link>
+            <hr class="my-1 border-gray-200 dark:border-gray-600">
+            <button @click="toggleDarkMode" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+              <span class="flex items-center">
+                <font-awesome-icon :icon="['fas', isDarkMode ? 'sun' : 'moon']" class="mr-2" />
+                {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
+              </span>
+            </button>
+            <hr class="my-1 border-gray-200 dark:border-gray-600">
+            <button @click="logout" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+              Logout
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- Content -->
@@ -138,8 +156,8 @@ onMounted(() => {
       </footer> -->
     </div>
 
-    <!-- Mobile Sidebar Overlay -->
-    <div v-if="mobileSidebarOpen" class="fixed inset-0 bg-black bg-opacity-40 z-50 md:hidden" @click="mobileSidebarOpen = false">
+    <!-- Mobile Sidebar Overlay - Only show when authenticated -->
+    <div v-if="mobileSidebarOpen && $page.props.auth.user" class="fixed inset-0 bg-black bg-opacity-40 z-50 md:hidden" @click="mobileSidebarOpen = false">
       <div class="bg-white dark:bg-gray-800 w-64 h-full p-4">
         <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Menu</h2>
         <Link href="/" class="block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Home</Link>
