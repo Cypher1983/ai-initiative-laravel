@@ -8,17 +8,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 Route::get('/', function () {
+    return Inertia::render('Dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/welcome', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
-
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->name('welcome');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -48,7 +48,7 @@ Route::post('/api/llm/message', function (Request $request) {
     } catch (\Exception $e) {
         return response()->json(['error' => 'LLM request error: ' . $e->getMessage()], 500);
     }
-});
+})->middleware(['auth']);
 
 
 require __DIR__.'/auth.php';

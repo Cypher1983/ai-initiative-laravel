@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-full bg-gray-100 flex flex-col">
+    <div class="min-h-full bg-gray-100 dark:bg-gray-900 flex flex-col">
       <!-- Header -->
       <!-- <header class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
         <h1 class="text-xl font-bold text-gray-800">🤖 AI Chat Assistant</h1>
@@ -24,14 +24,14 @@
               'max-w-2xl md:max-w-3xl px-6 py-2 rounded-lg text-sm',
               msg.role === 'user'
                 ? 'bg-blue-600 text-white rounded-br-none'
-                : 'bg-gray-200 text-gray-900 rounded-bl-none'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
             ]"
 
             style="line-height: 1.7rem;"
           >
                   <template v-if="msg.role === 'assistant' && msg.loading">
                     <span class="inline-flex items-center align-middle" style="height: 1.75em;">
-                      <font-awesome-icon icon="fa-solid fa-ellipsis" class="animate-pulse text-gray-500 text-xl" style="vertical-align: middle;" />
+                      <font-awesome-icon icon="fa-solid fa-ellipsis" class="animate-pulse text-gray-500 dark:text-gray-400 text-xl" style="vertical-align: middle;" />
                     </span>
                   </template>
                   <template v-else>
@@ -49,7 +49,7 @@
               v-model="userInput"
               rows="1"
               style="overflow:hidden"
-              class="flex-1 resize-none p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="flex-1 resize-none p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
               placeholder="Ask anything..."
             >
             <button
@@ -92,7 +92,13 @@
   })
   
   const userInput = ref('')
-  const messages = ref([])
+  const messages = ref([
+    {
+      role: 'assistant',
+      content: '👋 Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+      loading: false
+    }
+  ])
   const chatScroll = ref(null)
   
   const sendMessage = async () => {
@@ -113,6 +119,12 @@
       // Replace the last assistant message (loading) with the actual response
       messages.value[messages.value.length - 1] = { role: 'assistant', content: data.response, loading: false }
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        // User is not authenticated, redirect to login
+        window.location.href = '/login'
+        return
+      }
+      
       messages.value[messages.value.length - 1] = {
         role: 'assistant',
         content: '⚠️ Sorry, the assistant is currently unavailable.',
@@ -147,6 +159,12 @@ pre, code {
   overflow-x: auto;
 }
 
+/* Dark mode code blocks */
+.dark pre, .dark code {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
 p{
   line-height: 1.25rem;
   margin-top: 1.5rem !important;
@@ -163,5 +181,14 @@ ol{
 
 ol li{
   padding-bottom: .25rem;;
+}
+
+/* Dark mode list styling */
+.dark ol {
+  color: #f3f4f6;
+}
+
+.dark ol li {
+  color: #f3f4f6;
 }
   </style>

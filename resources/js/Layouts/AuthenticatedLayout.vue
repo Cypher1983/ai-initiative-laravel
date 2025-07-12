@@ -1,38 +1,131 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { Head, Link, usePage, router } from '@inertiajs/vue3'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const mobileSidebarOpen = ref(false)
+const userDropdownOpen = ref(false)
+const isDarkMode = ref(false)
+const sidebarCollapsed = ref(false)
+const $page = usePage()
+
+const logout = () => {
+  router.post('/logout')
+}
+
+const toggleUserDropdown = () => {
+  userDropdownOpen.value = !userDropdownOpen.value
+}
+
+const closeUserDropdown = () => {
+  userDropdownOpen.value = false
+}
+
+const toggleDarkMode = () => {
+  isDarkMode.value = !isDarkMode.value
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('darkMode', 'true')
+  } else {
+    document.documentElement.classList.remove('dark')
+    localStorage.setItem('darkMode', 'false')
+  }
+}
+
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value.toString())
+}
+
+onMounted(() => {
+  // Check for saved dark mode preference
+  const savedDarkMode = localStorage.getItem('darkMode')
+  if (savedDarkMode === 'true' || (!savedDarkMode && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    isDarkMode.value = true
+    document.documentElement.classList.add('dark')
+  }
+
+  // Check for saved sidebar collapsed preference
+  const savedSidebarCollapsed = localStorage.getItem('sidebarCollapsed')
+  if (savedSidebarCollapsed === 'true') {
+    sidebarCollapsed.value = true
+  }
+
+  document.addEventListener('click', (e) => {
+    const dropdown = document.querySelector('[data-dropdown]')
+    if (dropdown && !dropdown.contains(e.target)) {
+      closeUserDropdown()
+    }
+  })
+})
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-100 text-gray-900">
+  <div class="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     <!-- Sidebar -->
-    <aside class="hidden md:flex w-64 flex-col bg-white border-r">
-      <div class="px-6 py-4 border-b">
-        <h1 class="text-xl font-semibold text-gray-800">🤖 AI Assistant</h1>
+    <aside :class="[
+      'hidden md:flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300',
+      sidebarCollapsed ? 'w-16' : 'w-64'
+    ]">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <h1 v-if="!sidebarCollapsed" class="text-xl font-semibold text-gray-800 dark:text-gray-200 w-fit">The AI Initiative</h1>
+        <h1 v-else class="text-xl font-semibold text-gray-800 dark:text-gray-200">AI</h1>
+        <button 
+          @click="toggleSidebar" 
+          class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+          :title="sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
+        >
+          <font-awesome-icon :icon="['fas', sidebarCollapsed ? 'chevron-right' : 'chevron-left']" class="text-sm" />
+        </button>
       </div>
       <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-        <Link href="/dashboard" class="block px-3 py-2 rounded hover:bg-gray-200">Home</Link>
-        <Link href="/chat" class="block px-3 py-2 rounded hover:bg-gray-200">Chat</Link>
+        <Link 
+          href="/" 
+          :class="[
+            'block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
+            sidebarCollapsed ? 'text-center' : ''
+          ]"
+          :title="sidebarCollapsed ? 'Home' : ''"
+        >
+          <span v-if="!sidebarCollapsed">Home</span>
+          <font-awesome-icon v-else :icon="['fas', 'home']" class="text-lg" />
+        </Link>
         <!-- Add more nav items here -->
       </nav>
-      <div class="p-4 border-t">
-        <form method="POST" action="/logout">
-          <button type="submit" class="w-full text-left text-sm text-red-600 hover:underline">Logout</button>
-        </form>
-      </div>
     </aside>
 
     <!-- Main Area -->
-    <div class="flex-1 flex flex-col overflow-hidden">
-      <!-- Top bar -->
-      <header class="bg-white shadow px-6 py-4 flex justify-between items-center md:hidden">
-        <h1 class="text-lg font-semibold">AI Assistant</h1>
-        <button @click="mobileSidebarOpen = !mobileSidebarOpen" class="text-gray-600">
-          ☰
+    <div class="flex-1 flex flex-col overflow-hidden relative">
+      <!-- Mobile Menu Button - Absolute Positioned -->
+      <button @click="mobileSidebarOpen = !mobileSidebarOpen" class="absolute top-4 left-4 z-50 md:hidden bg-white dark:bg-gray-800 rounded-full w-8 h-8 flex items-center justify-center shadow-lg">
+        ☰
+      </button>
+
+      <!-- User Avatar Dropdown - Absolute Positioned -->
+      <div class="absolute top-4 right-4 z-50" data-dropdown>
+        <button @click="toggleUserDropdown" class="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
+          <div class="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center shadow-lg">
+            <font-awesome-icon :icon="['fas', 'user']" class="text-gray-600 dark:text-gray-400 text-sm" />
+          </div>
         </button>
-      </header>
+        
+        <!-- Dropdown Menu -->
+        <div v-if="userDropdownOpen" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50">
+          <Link href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+            Profile
+          </Link>
+          <hr class="my-1 border-gray-200 dark:border-gray-600">
+          <button @click="toggleDarkMode" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <span class="flex items-center">
+              <font-awesome-icon :icon="['fas', isDarkMode ? 'sun' : 'moon']" class="mr-2" />
+              {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
+            </span>
+          </button>
+          <hr class="my-1 border-gray-200 dark:border-gray-600">
+          <button @click="logout" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+            Logout
+          </button>
+        </div>
+      </div>
 
       <!-- Content -->
       <main class="flex-1 overflow-auto">
@@ -47,13 +140,10 @@ const mobileSidebarOpen = ref(false)
 
     <!-- Mobile Sidebar Overlay -->
     <div v-if="mobileSidebarOpen" class="fixed inset-0 bg-black bg-opacity-40 z-50 md:hidden" @click="mobileSidebarOpen = false">
-      <div class="bg-white w-64 h-full p-4">
-        <h2 class="text-lg font-semibold mb-4">Menu</h2>
-        <Link href="/dashboard" class="block px-3 py-2 rounded hover:bg-gray-200">Home</Link>
-        <Link href="/chat" class="block px-3 py-2 rounded hover:bg-gray-200">Chat</Link>
-        <form method="POST" action="/logout" class="mt-4">
-          <button type="submit" class="text-sm text-red-600 hover:underline">Logout</button>
-        </form>
+      <div class="bg-white dark:bg-gray-800 w-64 h-full p-4">
+        <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Menu</h2>
+        <Link href="/" class="block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Home</Link>
+        
       </div>
     </div>
   </div>
