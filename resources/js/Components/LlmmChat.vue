@@ -103,7 +103,24 @@
     }
   ])
   const chatScroll = ref(null)
-  
+
+  // Reset method to clear chat
+  const resetChat = () => {
+    messages.value = [
+      {
+        role: 'assistant',
+        content: '👋 Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+        loading: false
+      }
+    ]
+    userInput.value = ''
+  }
+
+  // Expose the reset method to parent components
+  defineExpose({
+    resetChat
+  })
+
   const sendMessage = async () => {
     if (!userInput.value.trim()) return
   

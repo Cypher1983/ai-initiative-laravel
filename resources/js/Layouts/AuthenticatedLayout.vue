@@ -39,6 +39,11 @@ const toggleSidebar = () => {
   localStorage.setItem('sidebarCollapsed', sidebarCollapsed.value.toString())
 }
 
+const handleNewChat = () => {
+  // Emit a custom event that the Dashboard can listen to
+  window.dispatchEvent(new CustomEvent('reset-chat'))
+}
+
 onMounted(() => {
   // Check for saved dark mode preference and apply immediately
   const savedDarkMode = localStorage.getItem('darkMode')
@@ -84,6 +89,22 @@ onMounted(() => {
         </button>
       </div>
       <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+        <!-- New Chat Button -->
+        <button 
+          @click="handleNewChat"
+          :class="[
+            'block w-full px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
+            sidebarCollapsed ? 'text-center' : ''
+          ]"
+          :title="sidebarCollapsed ? 'New Chat' : ''"
+        >
+          <span v-if="!sidebarCollapsed" class="flex items-center">
+            <span class="mr-2 text-sm font-bold">+</span>
+            New Chat
+          </span>
+          <font-awesome-icon v-else :icon="['fas', 'plus']" class="text-lg" />
+        </button>
+        
         <!-- <Link 
           href="/" 
           :class="[
@@ -160,6 +181,16 @@ onMounted(() => {
     <div v-if="mobileSidebarOpen && $page.props.auth.user" class="fixed inset-0 bg-black bg-opacity-40 z-50 md:hidden" @click="mobileSidebarOpen = false">
       <div class="bg-white dark:bg-gray-800 w-64 h-full p-4">
         <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Menu</h2>
+        <!-- New Chat Button for Mobile -->
+        <button 
+          @click="handleNewChat"
+          class="block w-full px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+        >
+          <span class="flex items-center">
+            <font-awesome-icon :icon="['fas', 'plus']" class="mr-2 text-sm" />
+            New Chat
+          </span>
+        </button>
         <!-- <Link href="/" class="block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Home</Link> -->
         
       </div>
