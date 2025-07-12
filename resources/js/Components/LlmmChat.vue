@@ -23,7 +23,7 @@
             :class="[
               'max-w-2xl md:max-w-3xl px-6 py-2 rounded-lg text-sm',
               msg.role === 'user'
-                ? 'bg-blue-600 text-white rounded-br-none'
+                ? 'bg-teal-500 text-white rounded-br-none'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
             ]"
 
@@ -44,21 +44,24 @@
           </div>
   
           <!-- Message input -->
-          <form @submit.prevent="sendMessage" class="mt-4 flex w-full gap-3">
-            <input type="text"
-              v-model="userInput"
-              rows="1"
-              style="overflow:hidden"
-              class="flex-1 resize-none p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
-              placeholder="Ask anything..."
-            >
-            <button
-              type="submit"
-              class="bg-blue-600 text-white px-5 py-3 rounded-md shadow hover:bg-blue-700 transition self-start flex items-center justify-center"
-              style="align-self: flex-start;"
-            >
-              <font-awesome-icon icon="fa-solid fa-paper-plane" />
-            </button>
+          <form @submit.prevent="sendMessage" class="mt-4 flex w-full">
+            <div class="flex-1 relative">
+              <input type="text"
+                v-model="userInput"
+                rows="1"
+                style="overflow:hidden"
+                class="w-full resize-none p-2 pr-12 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                placeholder="Ask anything..."
+              >
+              <button
+                type="submit"
+                :disabled="!userInput.trim()"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-transparent border-transparent p-2 rounded-md transition flex items-center justify-center"
+                :class="userInput.trim() ? 'text-gray-500 hover:text-blue-600 cursor-pointer' : 'text-gray-300 cursor-not-allowed'"
+              >
+                <font-awesome-icon icon="fa-solid fa-paper-plane" />
+              </button>
+            </div>
           </form>
         </div>
       </main>

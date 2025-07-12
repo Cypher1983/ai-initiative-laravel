@@ -84,7 +84,7 @@ onMounted(() => {
         </button>
       </div>
       <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-        <Link 
+        <!-- <Link 
           href="/" 
           :class="[
             'block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
@@ -94,7 +94,7 @@ onMounted(() => {
         >
           <span v-if="!sidebarCollapsed">Home</span>
           <font-awesome-icon v-else :icon="['fas', 'home']" class="text-lg" />
-        </Link>
+        </Link> -->
         <!-- Add more nav items here -->
       </nav>
     </aside>
@@ -160,7 +160,7 @@ onMounted(() => {
     <div v-if="mobileSidebarOpen && $page.props.auth.user" class="fixed inset-0 bg-black bg-opacity-40 z-50 md:hidden" @click="mobileSidebarOpen = false">
       <div class="bg-white dark:bg-gray-800 w-64 h-full p-4">
         <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Menu</h2>
-        <Link href="/" class="block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Home</Link>
+        <!-- <Link href="/" class="block px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Home</Link> -->
         
       </div>
     </div>
