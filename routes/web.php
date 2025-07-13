@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ChatController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -24,6 +25,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Chat routes
+    Route::prefix('api/chat')->group(function () {
+        Route::get('/sessions', [ChatController::class, 'index'])->name('chat.sessions.index');
+        Route::get('/sessions/active', [ChatController::class, 'getActiveSession'])->name('chat.sessions.active');
+        Route::post('/sessions', [ChatController::class, 'store'])->name('chat.sessions.store');
+        Route::get('/sessions/{chatSession}', [ChatController::class, 'show'])->name('chat.sessions.show');
+        Route::put('/sessions/{chatSession}', [ChatController::class, 'update'])->name('chat.sessions.update');
+        Route::delete('/sessions/{chatSession}', [ChatController::class, 'destroy'])->name('chat.sessions.destroy');
+        Route::post('/sessions/{chatSession}/messages', [ChatController::class, 'addMessage'])->name('chat.messages.store');
+    });
 });
 
 Route::post('/api/llm/message', function (Request $request) {
