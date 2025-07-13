@@ -130,17 +130,25 @@
     
     messages.value = [{
       role: 'assistant',
-      content: '👋 Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+      content: '\uD83D\uDC4B Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
       loading: false
     }]
   } catch (error) {
-    console.error('Error creating new chat session:', error)
-    // Fallback to empty chat
-    messages.value = [{
-      role: 'assistant',
-      content: '👋 Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
-      loading: false
-    }]
+    if (error.response && error.response.status === 401) {
+      messages.value = [{
+        role: 'assistant',
+        content: '\u26A0\uFE0F You must be logged in to start a chat session.',
+        loading: false
+      }]
+    } else {
+      console.error('Error creating new chat session:', error)
+      // Fallback to empty chat
+      messages.value = [{
+        role: 'assistant',
+        content: '\uD83D\uDC4B Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+        loading: false
+      }]
+    }
   } finally {
     isLoadingSession.value = false
   }
@@ -164,12 +172,20 @@
       
       messages.value = [{
         role: 'assistant',
-        content: '👋 Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+        content: '\uD83D\uDC4B Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
         loading: false
       }]
       userInput.value = ''
     } catch (error) {
-      console.error('Error creating new chat session:', error)
+      if (error.response && error.response.status === 401) {
+        messages.value = [{
+          role: 'assistant',
+          content: '\u26A0\uFE0F You must be logged in to start a chat session.',
+          loading: false
+        }]
+      } else {
+        console.error('Error creating new chat session:', error)
+      }
     }
   }
 

@@ -22,6 +22,6 @@ class DatabaseSeeder extends Seeder
         //     'email' => 'test@example.com',
         // ]);
         $this->call(UserSeeder::class);
-        $this->call(ChatSeeder::class);
+        // $this->call(ChatSeeder::class); // Chat sessions for testing
     }
 }

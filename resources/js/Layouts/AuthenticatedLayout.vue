@@ -144,6 +144,21 @@ const formatSessionDate = (dateString) => {
   }
 }
 
+// Handle new session created event
+const handleNewSessionCreated = (event) => {
+  const newSession = event.detail.session
+  // Find and replace the temporary session with the real one
+  const tempIndex = chatSessions.value.findIndex(session => 
+    session.id === Date.now() || session.title === 'New Chat' && session.messages?.length === 0
+  )
+  if (tempIndex !== -1) {
+    chatSessions.value[tempIndex] = newSession
+  } else {
+    // If no temporary session found, prepend the new one
+    chatSessions.value.unshift(newSession)
+  }
+}
+
 onMounted(() => {
   // Check for saved dark mode preference and apply immediately
   const savedDarkMode = localStorage.getItem('darkMode')
@@ -168,23 +183,6 @@ onMounted(() => {
 
   // Listen for refresh-chat-sessions event
   window.addEventListener('refresh-chat-sessions', fetchChatSessions)
-  
-  // Handle new session created event
-  const handleNewSessionCreated = (event) => {
-    const newSession = event.detail.session
-    
-    // Find and replace the temporary session with the real one
-    const tempIndex = chatSessions.value.findIndex(session => 
-      session.id === Date.now() || session.title === 'New Chat' && session.messages?.length === 0
-    )
-    
-    if (tempIndex !== -1) {
-      chatSessions.value[tempIndex] = newSession
-    } else {
-      // If no temporary session found, prepend the new one
-      chatSessions.value.unshift(newSession)
-    }
-  }
   
   // Listen for new session created event
   window.addEventListener('new-session-created', handleNewSessionCreated)
