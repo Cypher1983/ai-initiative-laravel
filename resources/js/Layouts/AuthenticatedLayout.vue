@@ -2,6 +2,7 @@
 import { Head, Link, usePage, router } from '@inertiajs/vue3'
 import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
+import ConfirmationModal from '@/Components/ConfirmationModal.vue'
 
 const mobileSidebarOpen = ref(false)
 const userDropdownOpen = ref(false)
@@ -9,6 +10,8 @@ const isDarkMode = ref(false)
 const sidebarCollapsed = ref(false)
 const chatSessions = ref([])
 const isLoadingSessions = ref(false)
+const showDeleteModal = ref(false)
+const sessionToDelete = ref(null)
 const $page = usePage()
 
 const logout = () => {
@@ -159,16 +162,20 @@ const handleNewSessionCreated = (event) => {
   }
 }
 
-const deleteChatSession = async (sessionId, event) => {
+const deleteChatSession = (sessionId, event) => {
   // Prevent the click from bubbling up to the parent button
   event.stopPropagation()
   
   console.log('Delete button clicked for session:', sessionId)
   
-  if (!confirm('Are you sure you want to delete this chat session? This action cannot be undone.')) {
-    console.log('User cancelled deletion')
-    return
-  }
+  // Store the session to delete and show the modal
+  sessionToDelete.value = sessionId
+  showDeleteModal.value = true
+}
+
+const confirmDeleteSession = async () => {
+  const sessionId = sessionToDelete.value
+  if (!sessionId) return
   
   console.log('User confirmed deletion, making API call...')
   
@@ -198,7 +205,15 @@ const deleteChatSession = async (sessionId, event) => {
       status: error.response?.status
     })
     alert(`Failed to delete chat session: ${error.response?.data?.message || error.message}`)
+  } finally {
+    // Reset the session to delete
+    sessionToDelete.value = null
   }
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  sessionToDelete.value = null
 }
 
 onMounted(() => {
@@ -282,6 +297,14 @@ onUnmounted(() => {
 .dark .custom-scrollbar {
   scrollbar-color: #4b5563 transparent;
 }
+
+/* Chat title truncation */
+.chat-title-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
 </style>
 
 <template>
@@ -289,7 +312,7 @@ onUnmounted(() => {
     <!-- Sidebar - Only show when authenticated -->
     <aside v-if="$page.props.auth.user" :class="[
       'hidden md:flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300',
-      sidebarCollapsed ? 'w-16' : 'w-64'
+      sidebarCollapsed ? 'w-16' : 'w-80'
     ]">
       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h1 v-if="!sidebarCollapsed" class="text-xl font-semibold text-gray-800 dark:text-gray-200 w-fit">The AI Initiative</h1>
@@ -328,20 +351,20 @@ onUnmounted(() => {
               v-for="session in chatSessions" 
               :key="session.id" 
               :class="[
-                'group relative flex items-center',
+                'group relative flex items-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
                 sidebarCollapsed ? 'justify-center' : ''
               ]"
             >
               <button 
                 @click="loadChatSession(session.id)"
                 :class="[
-                  'flex-1 text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
+                  'flex-1 text-left px-3 py-2 text-gray-700 dark:text-gray-300',
                   sidebarCollapsed ? 'text-center' : ''
                 ]"
                 :title="sidebarCollapsed ? formatSessionTitle(session) : ''"
               >
-                <div v-if="!sidebarCollapsed" class="flex flex-col">
-                  <span class="text-sm font-medium truncate">{{ formatSessionTitle(session) }}</span>
+                <div v-if="!sidebarCollapsed" class="flex flex-col min-w-0">
+                  <span class="text-sm font-medium chat-title-truncate">{{ formatSessionTitle(session) }}</span>
                   <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatSessionDate(session.updated_at) }}</span>
                 </div>
                 <font-awesome-icon v-else :icon="['fas', 'history']" class="text-lg" />
@@ -351,7 +374,7 @@ onUnmounted(() => {
               <button 
                 v-if="!sidebarCollapsed"
                 @click="deleteChatSession(session.id, $event)"
-                class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 pr-2 text-gray-700 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400"
                 title="Delete chat"
               >
                 <font-awesome-icon :icon="['fas', 'trash']" class="text-xs" />
@@ -442,14 +465,14 @@ onUnmounted(() => {
             <div 
               v-for="session in chatSessions" 
               :key="session.id" 
-              class="group relative flex items-center"
+              class="group relative flex items-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
               <button 
                 @click="loadChatSession(session.id)"
-                class="flex-1 text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                class="flex-1 text-left px-3 py-2 text-gray-700 dark:text-gray-300"
               >
-                <div class="flex flex-col">
-                  <span class="text-sm font-medium truncate">{{ formatSessionTitle(session) }}</span>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-sm font-medium chat-title-truncate">{{ formatSessionTitle(session) }}</span>
                   <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatSessionDate(session.updated_at) }}</span>
                 </div>
               </button>
@@ -457,7 +480,7 @@ onUnmounted(() => {
               <!-- Delete button for mobile - always visible -->
               <button 
                 @click="deleteChatSession(session.id, $event)"
-                class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                class="p-2 pr-3 text-gray-700 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400"
                 title="Delete chat"
               >
                 <font-awesome-icon :icon="['fas', 'trash']" class="text-sm" />
@@ -468,5 +491,16 @@ onUnmounted(() => {
         
       </div>
     </div>
+    
+    <!-- Confirmation Modal -->
+    <ConfirmationModal
+      :is-open="showDeleteModal"
+      title="Delete Chat Session"
+      message="Are you sure you want to delete this chat session? This action cannot be undone."
+      confirm-text="Delete"
+      cancel-text="Cancel"
+      @confirm="confirmDeleteSession"
+      @close="closeDeleteModal"
+    />
   </div>
 </template>

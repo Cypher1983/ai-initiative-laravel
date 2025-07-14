@@ -387,6 +387,9 @@
         }
       })
       
+      // Update chat title based on the selected content
+      await updateSessionTitleFromSelection(selectedContent)
+      
       // Emit event to refresh chat sessions list
       window.dispatchEvent(new CustomEvent('refresh-chat-sessions'))
     } catch (error) {
@@ -571,6 +574,55 @@
     }
   }
 
+  // Update session title based on selected content from multiple options
+  const updateSessionTitleFromSelection = async (selectedContent) => {
+    try {
+      // Find the original user message that prompted this response
+      const userMessageIndex = messages.value.findIndex(msg => msg.role === 'user')
+      if (userMessageIndex === -1) return
+
+      const userMessage = messages.value[userMessageIndex].content
+      
+      const titlePrompt = `Generate a short, descriptive title (max 50 characters) for a chat session based on this user question: "${userMessage}" and the selected AI response: "${selectedContent.substring(0, 200)}...". 
+      
+      Rules:
+      - Keep it under 50 characters
+      - Make it descriptive but concise
+      - Use title case
+      - Don't include quotes or special formatting
+      - Focus on the main topic or question
+      - Consider both the user's question and the AI's response
+      
+      Examples:
+      - "How to implement authentication"
+      - "Python web scraping tutorial"
+      - "Database optimization tips"
+      - "React component best practices"
+      
+      Title:`
+      
+      const { data } = await axios.post('/api/llm/message', {
+        prompt: titlePrompt
+      })
+      
+      // Clean up the response and update the session title
+      const response = data.response || data.options?.[0] || ''
+      const title = response.trim().replace(/^["']|["']$/g, '') // Remove quotes if present
+      
+      if (title && title.length <= 50) {
+        await axios.put(`/api/chat/sessions/${currentSessionId.value}`, {
+          title: title
+        })
+        
+        // Emit event to refresh chat sessions list
+        window.dispatchEvent(new CustomEvent('refresh-chat-sessions'))
+      }
+    } catch (error) {
+      console.error('Error updating session title from selection:', error)
+      // Don't fail the main flow if title generation fails
+    }
+  }
+
   onUpdated(() => {
     if (chatScroll.value) {
       chatScroll.value.scrollTop = chatScroll.value.scrollHeight
@@ -629,8 +681,8 @@
     scrollbar-color: #4b5563 transparent;
   }
 
-  /* Add this to your CSS (e.g., in app.css or <style> block in LlmmChat.vue) */
-  /* Add this to your CSS (e.g., in app.css or <style> block in LlmmChat.vue) */
+  /* Add this to your CSS (e.g., in app.css or <style> block in LlmChat.vue) */
+  /* Add this to your CSS (e.g., in app.css or <style> block in LlmChat.vue) */
 pre, code {
   background: #313131;
   color: #fff;
@@ -736,4 +788,4 @@ ol li{
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
   }
-  </style>
+  </style> 

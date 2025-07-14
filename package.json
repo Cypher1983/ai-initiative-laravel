@@ -24,6 +24,7 @@
         "@fortawesome/fontawesome-svg-core": "^6.7.2",
         "@fortawesome/free-solid-svg-icons": "^6.7.2",
         "@fortawesome/vue-fontawesome": "^3.0.8",
+        "@headlessui/vue": "^1.7.23",
         "highlight.js": "^11.11.1",
         "marked": "^16.0.0"
     }

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
-import LlmChat from '@/Components/LlmmChat.vue'
+import LlmChat from '@/Components/LlmChat.vue'
 
 const llmChatRef = ref(null)
 
