@@ -44,6 +44,21 @@ Route::post('/api/llm/message', function (Request $request) {
     ]);
 
     try {
+        // For testing purposes, simulate multiple options for specific prompts
+        $prompt = $request->input('prompt');
+        
+        // Test mode: If the prompt contains "test options", return multiple options
+        if (str_contains(strtolower($prompt), 'test options')) {
+            return response()->json([
+                'options' => [
+                    "Here's the first option for your question. This approach focuses on simplicity and ease of implementation.",
+                    "Here's an alternative approach that prioritizes performance and scalability. This method might be more complex but offers better long-term benefits."
+                ],
+                'context_text' => 'Test context for multiple options',
+                'debug_info' => 'Simulated multiple options response'
+            ]);
+        }
+
         // Call the FastAPI backend (or LM Studio directly if needed)
         $ragResponse = Http::timeout(3600)->post('http://127.0.0.1:8001/llm/query', [
             'prompt' => $request->input('prompt'),
@@ -56,7 +71,21 @@ Route::post('/api/llm/message', function (Request $request) {
         $data = $ragResponse->json();
         $reply = $data['content'] ?? 'No response content found.';
 
-        return response()->json(['response' => $reply,'context_text' => $data['context_text'] ?? 'No context text found.','debug_info' => $data['debug_info'] ?? 'No debug info found.']);
+        // Check if the backend returned multiple options
+        if (isset($data['options']) && is_array($data['options']) && count($data['options']) > 1) {
+            return response()->json([
+                'options' => $data['options'],
+                'context_text' => $data['context_text'] ?? 'No context text found.',
+                'debug_info' => $data['debug_info'] ?? 'No debug info found.'
+            ]);
+        } else {
+            return response()->json([
+                'response' => $reply,
+                'options' => $data['options'],
+                'context_text' => $data['context_text'] ?? 'No context text found.',
+                'debug_info' => $data['debug_info'] ?? 'No debug info found.'
+            ]);
+        }
     } catch (\Exception $e) {
         return response()->json(['error' => 'LLM request error: ' . $e->getMessage()], 500);
     }

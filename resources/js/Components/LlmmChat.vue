@@ -43,8 +43,56 @@
                       <font-awesome-icon icon="fa-solid fa-ellipsis" class="animate-pulse text-gray-500 dark:text-gray-400 text-xl" style="vertical-align: middle;" />
                     </span>
                   </template>
+                  <template v-else-if="msg.role === 'assistant' && msg.options">
+                    <!-- Multiple options display -->
+                    <div class="space-y-3">
+                      <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        I have multiple responses for you. Please select the best one:
+                      </div>
+                      <div v-for="(option, optionIndex) in msg.options" :key="optionIndex" class="option-container">
+                        <div class="flex items-start space-x-3">
+                          <button
+                            @click="selectOption(index, optionIndex)"
+                            :class="[
+                              'option-radio flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors',
+                              msg.selectedOption === optionIndex
+                                ? 'border-blue-500 bg-blue-500 text-white'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                            ]"
+                          >
+                            <font-awesome-icon 
+                              v-if="msg.selectedOption === optionIndex" 
+                              icon="fa-solid fa-check" 
+                              class="text-xs" 
+                            />
+                          </button>
+                          <div class="flex-1">
+                            <!-- <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                              Option {{ optionIndex + 1 }}
+                            </div> -->
+                            <div v-html="renderMarkdown(option || '')" class="text-sm multiple-options"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex space-x-2 mt-3">
+                        <button
+                          @click="confirmSelection(index)"
+                          :disabled="msg.selectedOption === null"
+                          class="confirm-button px-4 py-2 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Confirm Selection
+                        </button>
+                        <button
+                          @click="regenerateOptions(index)"
+                          class="regenerate-button px-4 py-2 text-white rounded-md text-sm font-medium"
+                        >
+                          Regenerate
+                        </button>
+                      </div>
+                    </div>
+                  </template>
                   <template v-else>
-                    <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)"></div>
+                    <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content || '')"></div>
                     <span v-else>{{ msg.content }}</span>
                   </template>
                 </div>
@@ -83,8 +131,8 @@
   import axios from 'axios'// Import Font Awesome core
   import { library } from '@fortawesome/fontawesome-svg-core';
   import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'// Import the faEllipsis icon
-  import { faEllipsis } from '@fortawesome/free-solid-svg-icons'// Add the icon to the library
-  library.add(faEllipsis);
+  import { faEllipsis, faCheck } from '@fortawesome/free-solid-svg-icons'// Add the icon to the library
+  library.add(faEllipsis, faCheck);
   import { marked } from 'marked'
   import hljs from 'highlight.js'
   import 'highlight.js/styles/github.css' // Or another theme
@@ -130,14 +178,14 @@
     
     messages.value = [{
       role: 'assistant',
-      content: '\uD83D\uDC4B Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+      content: 'Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
       loading: false
     }]
   } catch (error) {
     if (error.response && error.response.status === 401) {
       messages.value = [{
         role: 'assistant',
-        content: '\u26A0\uFE0F You must be logged in to start a chat session.',
+        content: 'You must be logged in to start a chat session.',
         loading: false
       }]
     } else {
@@ -145,7 +193,7 @@
       // Fallback to empty chat
       messages.value = [{
         role: 'assistant',
-        content: '\uD83D\uDC4B Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+        content: 'Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
         loading: false
       }]
     }
@@ -172,7 +220,7 @@
       
       messages.value = [{
         role: 'assistant',
-        content: '\uD83D\uDC4B Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+        content: 'Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
         loading: false
       }]
       userInput.value = ''
@@ -180,7 +228,7 @@
       if (error.response && error.response.status === 401) {
         messages.value = [{
           role: 'assistant',
-          content: '\u26A0\uFE0F You must be logged in to start a chat session.',
+          content: 'You must be logged in to start a chat session.',
           loading: false
         }]
       } else {
@@ -209,7 +257,7 @@
       if (messages.value.length === 0) {
         messages.value = [{
           role: 'assistant',
-          content: '👋 Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
+          content: 'Welcome! I\'m your AI assistant. Ask me anything and I\'ll help you out!',
           loading: false
         }]
       }
@@ -245,6 +293,86 @@
     // Clean up event listener
     window.removeEventListener('load-chat-session', handleLoadChatSession)
   })
+
+  // Select an option from multiple responses
+  const selectOption = (messageIndex, optionIndex) => {
+    messages.value[messageIndex].selectedOption = optionIndex
+  }
+
+  // Confirm the selected option
+  const confirmSelection = async (messageIndex) => {
+    const message = messages.value[messageIndex]
+    if (message.selectedOption === null) return
+
+    const selectedContent = message.options[message.selectedOption]
+    
+    // Replace the options message with the selected content
+    messages.value[messageIndex] = {
+      role: 'assistant',
+      content: selectedContent,
+      loading: false
+    }
+
+    // Store the selected response in database
+    try {
+      await axios.post(`/api/chat/sessions/${currentSessionId.value}/messages`, {
+        role: 'assistant',
+        content: selectedContent,
+        tokens_used: Math.ceil(selectedContent.length / 4), // Rough estimate
+        model_used: 'gpt-3.5-turbo',
+        metadata: {
+          was_selected_from_options: true,
+          original_options_count: message.options.length
+        }
+      })
+      
+      // Emit event to refresh chat sessions list
+      window.dispatchEvent(new CustomEvent('refresh-chat-sessions'))
+    } catch (error) {
+      console.error('Error storing selected assistant message:', error)
+    }
+  }
+
+  // Regenerate options for a message
+  const regenerateOptions = async (messageIndex) => {
+    // Find the original user message that prompted this response
+    const userMessageIndex = messageIndex - 1
+    if (userMessageIndex < 0 || messages.value[userMessageIndex].role !== 'user') return
+
+    const originalPrompt = messages.value[userMessageIndex].content
+    
+    // Replace the current message with loading state
+    messages.value[messageIndex] = { role: 'assistant', content: '', loading: true }
+
+    try {
+      const { data } = await axios.post('/api/llm/message', {
+        prompt: originalPrompt
+      })
+      
+      // Check if we got multiple options
+      if (data.options && Array.isArray(data.options) && data.options.length >= 2) {
+        messages.value[messageIndex] = {
+          role: 'assistant',
+          options: data.options,
+          selectedOption: null,
+          loading: false
+        }
+      } else {
+        // Fallback to single response
+        messages.value[messageIndex] = {
+          role: 'assistant',
+          content: data.response,
+          loading: false
+        }
+      }
+    } catch (error) {
+      messages.value[messageIndex] = {
+        role: 'assistant',
+        content: 'Sorry, I couldn\'t regenerate the options.',
+        loading: false
+      }
+    }
+  }
 
   const sendMessage = async () => {
     if (!userInput.value.trim() || !currentSessionId.value) return
@@ -282,31 +410,44 @@
       })
       const responseTime = (Date.now() - startTime) / 1000
   
-      // Replace the last assistant message (loading) with the actual response
-      messages.value[messages.value.length - 1] = { 
-        role: 'assistant', 
-        content: data.response, 
-        loading: false 
+      // Check if we got multiple options
+      if (data.options && Array.isArray(data.options) && data.options.length >= 2) {
+        // Replace the last assistant message (loading) with options
+        messages.value[messages.value.length - 1] = {
+          role: 'assistant',
+          options: data.options,
+          selectedOption: null,
+          loading: false
+        }
+      } else {
+        // Replace the last assistant message (loading) with the actual response
+        messages.value[messages.value.length - 1] = { 
+          role: 'assistant', 
+          content: data.response, 
+          loading: false 
+        }
       }
   
-      // Store assistant response in database
-      try {
-        await axios.post(`/api/chat/sessions/${currentSessionId.value}/messages`, {
-          role: 'assistant',
-          content: data.response,
-          tokens_used: Math.ceil(data.response.length / 4), // Rough estimate
-          model_used: 'gpt-3.5-turbo', // Or whatever model you're using
-          response_time: responseTime,
-          metadata: {
-            context_text: data.context_text,
-            debug_info: data.debug_info
-          }
-        })
-        
-        // Emit event to refresh chat sessions list
-        window.dispatchEvent(new CustomEvent('refresh-chat-sessions'))
-      } catch (error) {
-        console.error('Error storing assistant message:', error)
+      // Store assistant response in database (only for single responses)
+      if (!data.options) {
+        try {
+          await axios.post(`/api/chat/sessions/${currentSessionId.value}/messages`, {
+            role: 'assistant',
+            content: data.response,
+            tokens_used: Math.ceil(data.response.length / 4), // Rough estimate
+            model_used: 'gpt-3.5-turbo', // Or whatever model you're using
+            response_time: responseTime,
+            metadata: {
+              context_text: data.context_text,
+              debug_info: data.debug_info
+            }
+          })
+          
+          // Emit event to refresh chat sessions list
+          window.dispatchEvent(new CustomEvent('refresh-chat-sessions'))
+        } catch (error) {
+          console.error('Error storing assistant message:', error)
+        }
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -352,7 +493,8 @@
       })
       
       // Clean up the response and update the session title
-      const title = data.response.trim().replace(/^["']|["']$/g, '') // Remove quotes if present
+      const response = data.response || data.options?.[0] || ''
+      const title = response.trim().replace(/^["']|["']$/g, '') // Remove quotes if present
       
       if (title && title.length <= 50) {
         await axios.put(`/api/chat/sessions/${currentSessionId.value}`, {
@@ -379,7 +521,12 @@
     event.target.style.height = event.target.scrollHeight + 'px'
   }
 
-  const renderMarkdown = (text) => marked.parse(text)
+  const renderMarkdown = (text) => {
+    if (!text || typeof text !== 'string') {
+      return ''
+    }
+    return marked.parse(text)
+  }
   </script>
 
   <style>
@@ -444,6 +591,10 @@ p{
   margin-top: 1.5rem !important;
 }
 
+.multiple-options p:first-child, .option-radio{
+  margin-top: 0.25rem !important;
+}
+
 pre, p {
   margin: 0.5em 0;
 }
@@ -465,4 +616,63 @@ ol li{
 .dark ol li {
   color: #f3f4f6;
 }
+
+  /* Multiple options styling */
+  .option-container {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .dark .option-container {
+    border-color: #4b5563;
+  }
+
+  .option-container:hover {
+    border-color: #3b82f6;
+    background-color: #f8fafc;
+  }
+
+  .dark .option-container:hover {
+    background-color: #374151;
+    border-color: #60a5fa;
+  }
+
+  .option-radio {
+    transition: all 0.2s ease;
+  }
+
+  .option-radio:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+  }
+
+  .option-radio:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  .confirm-button {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    transition: all 0.2s ease;
+  }
+
+  .confirm-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  .regenerate-button {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    transition: all 0.2s ease;
+  }
+
+  .regenerate-button:hover {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+  }
   </style>
