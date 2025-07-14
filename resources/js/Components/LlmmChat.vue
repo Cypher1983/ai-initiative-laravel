@@ -281,17 +281,78 @@
     loadChatSession(event.detail.sessionId)
   }
 
+  // Listen for chat-session-deleted event
+  const handleChatSessionDeleted = (event) => {
+    const deletedSessionId = event.detail.sessionId
+    
+    // If the deleted session is the current one, check if we need to create a new session
+    if (currentSessionId.value === deletedSessionId) {
+      // Only create a new session if there are no other sessions available
+      // We'll wait a moment for the sidebar to update, then check if we need a new session
+      setTimeout(() => {
+        // Emit an event to check if there are any remaining sessions
+        window.dispatchEvent(new CustomEvent('check-remaining-sessions'))
+      }, 100)
+    }
+  }
+
+  // Listen for check-remaining-sessions event
+  const handleCheckRemainingSessions = async () => {
+    try {
+      // Check if there are any remaining sessions
+      const response = await axios.get('/api/chat/sessions')
+      if (response.data.length === 0) {
+        // No sessions left, create a new one
+        createNewSession()
+      } else {
+        // Load the first available session
+        loadChatSession(response.data[0].id)
+      }
+    } catch (error) {
+      console.error('Error checking remaining sessions:', error)
+      // Fallback to creating a new session
+      createNewSession()
+    }
+  }
+
   // Initialize chat session on component mount
-  onMounted(() => {
-    createNewSession()
+  onMounted(async () => {
+    try {
+      // Try to get the active session first
+      const response = await axios.get('/api/chat/sessions/active')
+      const activeSession = response.data
+      
+      // Check if the active session has any messages at all
+      const hasMessages = activeSession.messages && activeSession.messages.length === 0
+      
+      if (hasMessages) {
+        // Load the active session if it has any messages
+        loadChatSession(activeSession.id)
+      } else {
+        // Create a new session only if the active session is completely empty
+        createNewSession()
+      }
+    } catch (error) {
+      console.error('Error loading active session:', error)
+      // Fallback to creating a new session
+      createNewSession()
+    }
     
     // Add event listener for loading specific chat sessions
     window.addEventListener('load-chat-session', handleLoadChatSession)
+    
+    // Add event listener for deleted chat sessions
+    window.addEventListener('chat-session-deleted', handleChatSessionDeleted)
+    
+    // Add event listener for checking remaining sessions
+    window.addEventListener('check-remaining-sessions', handleCheckRemainingSessions)
   })
 
   onUnmounted(() => {
-    // Clean up event listener
+    // Clean up event listeners
     window.removeEventListener('load-chat-session', handleLoadChatSession)
+    window.removeEventListener('chat-session-deleted', handleChatSessionDeleted)
+    window.removeEventListener('check-remaining-sessions', handleCheckRemainingSessions)
   })
 
   // Select an option from multiple responses

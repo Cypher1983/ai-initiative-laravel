@@ -7,6 +7,7 @@ use App\Models\ChatSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
@@ -144,13 +145,35 @@ class ChatController extends Controller
      */
     public function destroy(ChatSession $chatSession): JsonResponse
     {
+        Log::info('Delete request received for chat session', [
+            'session_id' => $chatSession->id,
+            'user_id' => Auth::id(),
+            'session_user_id' => $chatSession->user_id
+        ]);
+
         // Ensure the user owns this chat session
         if ($chatSession->user_id !== Auth::id()) {
+            Log::warning('Unauthorized delete attempt', [
+                'session_id' => $chatSession->id,
+                'user_id' => Auth::id(),
+                'session_user_id' => $chatSession->user_id
+            ]);
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $chatSession->delete();
-
-        return response()->json(['message' => 'Chat session deleted successfully']);
+        try {
+            $chatSession->delete();
+            Log::info('Chat session deleted successfully', [
+                'session_id' => $chatSession->id,
+                'user_id' => Auth::id()
+            ]);
+            return response()->json(['message' => 'Chat session deleted successfully']);
+        } catch (\Exception $e) {
+            Log::error('Error deleting chat session', [
+                'session_id' => $chatSession->id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Failed to delete chat session'], 500);
+        }
     }
 } 

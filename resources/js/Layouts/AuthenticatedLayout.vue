@@ -159,6 +159,48 @@ const handleNewSessionCreated = (event) => {
   }
 }
 
+const deleteChatSession = async (sessionId, event) => {
+  // Prevent the click from bubbling up to the parent button
+  event.stopPropagation()
+  
+  console.log('Delete button clicked for session:', sessionId)
+  
+  if (!confirm('Are you sure you want to delete this chat session? This action cannot be undone.')) {
+    console.log('User cancelled deletion')
+    return
+  }
+  
+  console.log('User confirmed deletion, making API call...')
+  
+  try {
+    const response = await axios.delete(`/api/chat/sessions/${sessionId}`)
+    console.log('Delete API response:', response)
+    
+    // Remove the session from the local list
+    const index = chatSessions.value.findIndex(session => session.id === sessionId)
+    if (index !== -1) {
+      chatSessions.value.splice(index, 1)
+      console.log('Session removed from local list')
+    } else {
+      console.log('Session not found in local list')
+    }
+    
+    // Emit event to notify other components that a session was deleted
+    window.dispatchEvent(new CustomEvent('chat-session-deleted', { 
+      detail: { sessionId } 
+    }))
+    console.log('Chat session deleted event emitted')
+  } catch (error) {
+    console.error('Error deleting chat session:', error)
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    })
+    alert(`Failed to delete chat session: ${error.response?.data?.message || error.message}`)
+  }
+}
+
 onMounted(() => {
   // Check for saved dark mode preference and apply immediately
   const savedDarkMode = localStorage.getItem('darkMode')
@@ -282,22 +324,39 @@ onUnmounted(() => {
           <h3 v-if="!sidebarCollapsed" class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Chat History</h3>
           <div v-if="isLoadingSessions" class="text-sm text-gray-500 dark:text-gray-400">Loading history...</div>
           <div v-else class="space-y-1">
-            <button 
+            <div 
               v-for="session in chatSessions" 
               :key="session.id" 
-              @click="loadChatSession(session.id)"
               :class="[
-                'block w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
-                sidebarCollapsed ? 'text-center' : ''
+                'group relative flex items-center',
+                sidebarCollapsed ? 'justify-center' : ''
               ]"
-              :title="sidebarCollapsed ? formatSessionTitle(session) : ''"
             >
-              <div v-if="!sidebarCollapsed" class="flex flex-col">
-                <span class="text-sm font-medium truncate">{{ formatSessionTitle(session) }}</span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatSessionDate(session.updated_at) }}</span>
-              </div>
-              <font-awesome-icon v-else :icon="['fas', 'history']" class="text-lg" />
-            </button>
+              <button 
+                @click="loadChatSession(session.id)"
+                :class="[
+                  'flex-1 text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
+                  sidebarCollapsed ? 'text-center' : ''
+                ]"
+                :title="sidebarCollapsed ? formatSessionTitle(session) : ''"
+              >
+                <div v-if="!sidebarCollapsed" class="flex flex-col">
+                  <span class="text-sm font-medium truncate">{{ formatSessionTitle(session) }}</span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatSessionDate(session.updated_at) }}</span>
+                </div>
+                <font-awesome-icon v-else :icon="['fas', 'history']" class="text-lg" />
+              </button>
+              
+              <!-- Delete button - only show on hover for desktop -->
+              <button 
+                v-if="!sidebarCollapsed"
+                @click="deleteChatSession(session.id, $event)"
+                class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                title="Delete chat"
+              >
+                <font-awesome-icon :icon="['fas', 'trash']" class="text-xs" />
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -380,17 +439,30 @@ onUnmounted(() => {
           <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Chat History</h3>
           <div v-if="isLoadingSessions" class="text-sm text-gray-500 dark:text-gray-400">Loading history...</div>
           <div v-else class="space-y-1">
-            <button 
+            <div 
               v-for="session in chatSessions" 
               :key="session.id" 
-              @click="loadChatSession(session.id)"
-              class="block w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+              class="group relative flex items-center"
             >
-              <div class="flex flex-col">
-                <span class="text-sm font-medium truncate">{{ formatSessionTitle(session) }}</span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatSessionDate(session.updated_at) }}</span>
-              </div>
-            </button>
+              <button 
+                @click="loadChatSession(session.id)"
+                class="flex-1 text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium truncate">{{ formatSessionTitle(session) }}</span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatSessionDate(session.updated_at) }}</span>
+                </div>
+              </button>
+              
+              <!-- Delete button for mobile - always visible -->
+              <button 
+                @click="deleteChatSession(session.id, $event)"
+                class="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                title="Delete chat"
+              >
+                <font-awesome-icon :icon="['fas', 'trash']" class="text-sm" />
+              </button>
+            </div>
           </div>
         </div>
         
