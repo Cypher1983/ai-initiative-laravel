@@ -518,6 +518,9 @@ onUnmounted(() => {
             <Link href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
               Profile
             </Link>
+            <Link href="/workflows" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+              Workflows
+            </Link>
             <hr class="my-1 border-gray-200 dark:border-gray-600">
             <button @click="toggleDarkMode" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
               <span class="flex items-center">

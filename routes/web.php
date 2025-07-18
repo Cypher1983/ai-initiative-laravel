@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\WorkflowController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -36,6 +37,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/sessions/{chatSession}', [ChatController::class, 'destroy'])->name('chat.sessions.destroy');
         Route::post('/sessions/{chatSession}/messages', [ChatController::class, 'addMessage'])->name('chat.messages.store');
     });
+    
+    // Workflow routes
+    Route::resource('workflows', WorkflowController::class);
 });
 
 Route::post('/api/llm/message', function (Request $request) {
