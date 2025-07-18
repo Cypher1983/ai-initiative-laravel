@@ -1,12 +1,24 @@
 <template>
     <div class="min-h-full bg-gray-100 dark:bg-gray-900 flex flex-col">
-      <!-- Header -->
-      <!-- <header class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-gray-800">🤖 AI Chat Assistant</h1>
-      </header> -->
+      <!-- Global Lock Message - Always visible at top -->
+      <div v-if="hasPendingOptions" class="fixed top-0 left-0 right-0 z-50 bg-yellow-500 dark:bg-yellow-600 text-white px-4 py-3 shadow-lg">
+        <div class="max-w-6xl mx-auto flex items-center justify-center">
+          <div class="flex items-center space-x-3 text-center">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
+              <span class="text-sm font-medium">Chat Locked:</span>
+              <span class="text-sm">Please select an option from the multiple responses above before continuing</span>
+            </div>
+          </div>
+        </div>
+      </div>
   
       <!-- Chat Window -->
-      <main class="flex-1 flex flex-col items-center overflow-hidden">
+      <main class="flex-1 flex flex-col items-center overflow-hidden" :class="{ 'pt-16': hasPendingOptions }">
         <div class="max-w-6xl w-full flex flex-col flex-1 px-8 py-8 max-h-full">
           <!-- Loading state -->
           <div v-if="isLoadingSession" class="flex-1 flex items-center justify-center">
@@ -107,15 +119,15 @@
                 v-model="userInput"
                 rows="1"
                 style="overflow:hidden"
-                :disabled="!currentSessionId"
+                :disabled="!currentSessionId || hasPendingOptions"
                 class="w-full resize-none p-2 pr-12 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Ask anything..."
+                :placeholder="hasPendingOptions ? 'Please select an option above first...' : 'Ask anything...'"
               >
               <button
                 type="submit"
-                :disabled="!userInput.trim() || !currentSessionId"
+                :disabled="!userInput.trim() || !currentSessionId || hasPendingOptions"
                 class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-transparent border-transparent p-2 rounded-md transition flex items-center justify-center"
-                :class="userInput.trim() && currentSessionId ? 'text-gray-500 hover:text-blue-600 cursor-pointer' : 'text-gray-300 cursor-not-allowed'"
+                :class="userInput.trim() && currentSessionId && !hasPendingOptions ? 'text-gray-500 hover:text-blue-600 cursor-pointer' : 'text-gray-300 cursor-not-allowed'"
               >
                 <font-awesome-icon icon="fa-solid fa-paper-plane" />
               </button>
@@ -127,7 +139,7 @@
   </template>
   
   <script setup>
-  import { ref, onUpdated, onMounted, onUnmounted } from 'vue'
+  import { ref, onUpdated, onMounted, onUnmounted, computed, watch } from 'vue'
   import axios from 'axios'// Import Font Awesome core
   import { library } from '@fortawesome/fontawesome-svg-core';
   import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'// Import the faEllipsis icon
@@ -157,11 +169,31 @@
   const chatScroll = ref(null)
   const currentSessionId = ref(null)
   const isLoadingSession = ref(true)
+  const hasMultipleOptions = ref(false)
+
+  // Computed property to check if there are multiple options in the current chat
+  const hasPendingOptions = computed(() => {
+    return messages.value.some(msg => msg.role === 'assistant' && msg.options && Array.isArray(msg.options))
+  })
+
+  // Watch for changes in hasPendingOptions and emit events
+  watch(hasPendingOptions, (newValue) => {
+    // Emit event to notify parent components about the lock state
+    window.dispatchEvent(new CustomEvent('chat-lock-state-changed', { 
+      detail: { isLocked: newValue } 
+    }))
+  })
 
   // Create a new chat session by default
   const createNewSession = async () => {
-  try {
-    isLoadingSession.value = true
+    // Prevent creating new session if there are pending options
+    if (hasPendingOptions.value) {
+      console.warn('Cannot create new session while multiple options are pending')
+      return
+    }
+    
+    try {
+      isLoadingSession.value = true
     
     // Create a new chat session
     const response = await axios.post('/api/chat/sessions', {
@@ -174,6 +206,11 @@
     // Emit the new session data to update the sidebar
     window.dispatchEvent(new CustomEvent('new-session-created', { 
       detail: { session: response.data } 
+    }))
+    
+    // Emit event to notify layout about the loaded session
+    window.dispatchEvent(new CustomEvent('session-loaded', { 
+      detail: { sessionId: response.data.id } 
     }))
     
     messages.value = [{
@@ -204,6 +241,12 @@
 
   // Reset method to create new chat session
   const resetChat = async () => {
+    // Prevent creating new chat if there are pending options
+    if (hasPendingOptions.value) {
+      console.warn('Cannot create new chat while multiple options are pending')
+      return
+    }
+    
     try {
       // Create a new chat session
       const response = await axios.post('/api/chat/sessions', {
@@ -216,6 +259,11 @@
       // Emit the new session data to update the sidebar
       window.dispatchEvent(new CustomEvent('new-session-created', { 
         detail: { session: response.data } 
+      }))
+      
+      // Emit event to notify layout about the loaded session
+      window.dispatchEvent(new CustomEvent('session-loaded', { 
+        detail: { sessionId: response.data.id } 
       }))
       
       messages.value = [{
@@ -239,6 +287,12 @@
 
   // Load a specific chat session
   const loadChatSession = async (sessionId) => {
+    // Prevent loading if there are pending options
+    if (hasPendingOptions.value) {
+      console.warn('Cannot load chat session while multiple options are pending')
+      return
+    }
+    
     try {
       isLoadingSession.value = true
       
@@ -261,6 +315,11 @@
           loading: false
         }]
       }
+      
+      // Emit event to notify layout about the loaded session
+      window.dispatchEvent(new CustomEvent('session-loaded', { 
+        detail: { sessionId: session.id } 
+      }))
     } catch (error) {
       console.error('Error loading chat session:', error)
       // Fallback to new session
@@ -278,6 +337,11 @@
 
   // Listen for load-chat-session event
   const handleLoadChatSession = (event) => {
+    // Prevent loading if there are pending options
+    if (hasPendingOptions.value) {
+      console.warn('Cannot load chat session while multiple options are pending')
+      return
+    }
     loadChatSession(event.detail.sessionId)
   }
 
@@ -298,6 +362,12 @@
 
   // Listen for check-remaining-sessions event
   const handleCheckRemainingSessions = async () => {
+    // Prevent creating new sessions if there are pending options
+    if (hasPendingOptions.value) {
+      console.warn('Cannot check remaining sessions while multiple options are pending')
+      return
+    }
+    
     try {
       // Check if there are any remaining sessions
       const response = await axios.get('/api/chat/sessions')
@@ -439,7 +509,7 @@
   }
 
   const sendMessage = async () => {
-    if (!userInput.value.trim() || !currentSessionId.value) return
+    if (!userInput.value.trim() || !currentSessionId.value || hasPendingOptions.value) return
   
     const input = userInput.value
     userInput.value = ''
@@ -852,5 +922,21 @@ ol li{
     background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+  }
+
+  /* Ensure option buttons remain clickable */
+  .option-container {
+    position: relative;
+    z-index: 20;
+  }
+
+  .option-radio {
+    position: relative;
+    z-index: 20;
+  }
+
+  .confirm-button, .regenerate-button {
+    position: relative;
+    z-index: 20;
   }
   </style> 

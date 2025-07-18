@@ -12,6 +12,8 @@ const chatSessions = ref([])
 const isLoadingSessions = ref(false)
 const showDeleteModal = ref(false)
 const sessionToDelete = ref(null)
+const isChatLocked = ref(false)
+const currentSessionId = ref(null) // Track the currently active session
 const $page = usePage()
 
 const logout = () => {
@@ -60,6 +62,15 @@ const fetchChatSessions = async () => {
 }
 
 const loadChatSession = async (sessionId) => {
+  // Prevent loading chat session if chat is locked
+  if (isChatLocked.value) {
+    console.warn('Cannot load chat session while chat is locked')
+    return
+  }
+  
+  // Update the current session ID
+  currentSessionId.value = sessionId
+  
   // Emit a custom event to load the specific chat session
   window.dispatchEvent(new CustomEvent('load-chat-session', { 
     detail: { sessionId } 
@@ -70,6 +81,15 @@ const loadChatSession = async (sessionId) => {
 }
 
 const handleNewChat = () => {
+  // Prevent creating new chat if chat is locked
+  if (isChatLocked.value) {
+    console.warn('Cannot create new chat while chat is locked')
+    return
+  }
+  
+  // Clear the current session ID since we're creating a new one
+  currentSessionId.value = null
+  
   // Emit a custom event that the Dashboard can listen to
   window.dispatchEvent(new CustomEvent('reset-chat'))
   
@@ -160,6 +180,14 @@ const handleNewSessionCreated = (event) => {
     // If no temporary session found, prepend the new one
     chatSessions.value.unshift(newSession)
   }
+  
+  // Set the new session as the current active session
+  currentSessionId.value = newSession.id
+}
+
+// Handle session loaded event from LlmChat component
+const handleSessionLoaded = (event) => {
+  currentSessionId.value = event.detail.sessionId
 }
 
 const deleteChatSession = (sessionId, event) => {
@@ -216,6 +244,11 @@ const closeDeleteModal = () => {
   sessionToDelete.value = null
 }
 
+// Handle chat lock state changes
+const handleChatLockStateChanged = (event) => {
+  isChatLocked.value = event.detail.isLocked
+}
+
 onMounted(() => {
   // Check for saved dark mode preference and apply immediately
   const savedDarkMode = localStorage.getItem('darkMode')
@@ -243,6 +276,12 @@ onMounted(() => {
   
   // Listen for new session created event
   window.addEventListener('new-session-created', handleNewSessionCreated)
+  
+  // Listen for chat lock state changes
+  window.addEventListener('chat-lock-state-changed', handleChatLockStateChanged)
+  
+  // Listen for session loaded event from LlmChat
+  window.addEventListener('session-loaded', handleSessionLoaded)
 
   document.addEventListener('click', (e) => {
     const dropdown = document.querySelector('[data-dropdown]')
@@ -256,6 +295,8 @@ onUnmounted(() => {
   // Clean up event listeners
   window.removeEventListener('refresh-chat-sessions', fetchChatSessions)
   window.removeEventListener('new-session-created', handleNewSessionCreated)
+  window.removeEventListener('chat-lock-state-changed', handleChatLockStateChanged)
+  window.removeEventListener('session-loaded', handleSessionLoaded)
 })
 </script>
 
@@ -305,6 +346,52 @@ onUnmounted(() => {
   white-space: nowrap;
   max-width: 100%;
 }
+
+/* Active session styling */
+.active-session {
+  position: relative;
+  animation: activeSessionPulse 2s ease-in-out infinite;
+}
+
+.active-session::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  border-radius: 0 2px 2px 0;
+  animation: activeSessionGlow 2s ease-in-out infinite;
+}
+
+/* Active session hover effect */
+.active-session:hover {
+  background-color: #e5e7eb !important;
+}
+
+.dark .active-session:hover {
+  background-color: #4b5563 !important;
+}
+
+/* Active session animations */
+@keyframes activeSessionPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(107, 114, 128, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.1);
+  }
+}
+
+@keyframes activeSessionGlow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
 </style>
 
 <template>
@@ -329,11 +416,15 @@ onUnmounted(() => {
         <!-- New Chat Button -->
         <button 
           @click="handleNewChat"
+          :disabled="isChatLocked"
           :class="[
-            'block w-full px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors',
-            sidebarCollapsed ? 'text-center' : ''
+            'block w-full px-3 py-2 rounded transition-colors',
+            sidebarCollapsed ? 'text-center' : '',
+            isChatLocked 
+              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
           ]"
-          :title="sidebarCollapsed ? 'New Chat' : ''"
+          :title="sidebarCollapsed ? (isChatLocked ? 'Chat locked - select option first' : 'New Chat') : ''"
         >
           <span v-if="!sidebarCollapsed" class="flex items-center">
             <span class="mr-2 text-sm font-bold">+</span>
@@ -341,6 +432,8 @@ onUnmounted(() => {
           </span>
           <font-awesome-icon v-else :icon="['fas', 'plus']" class="text-lg" />
         </button>
+        
+
         
         <!-- Chat History -->
         <div v-if="chatSessions.length > 0" class="mt-4">
@@ -351,17 +444,26 @@ onUnmounted(() => {
               v-for="session in chatSessions" 
               :key="session.id" 
               :class="[
-                'group relative flex items-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
-                sidebarCollapsed ? 'justify-center' : ''
+                'group relative flex items-center rounded transition-colors',
+                sidebarCollapsed ? 'justify-center' : '',
+                currentSessionId === session.id 
+                  ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-gray-500 dark:border-gray-400 active-session' 
+                  : 'hover:bg-gray-200 dark:hover:bg-gray-700'
               ]"
             >
               <button 
                 @click="loadChatSession(session.id)"
+                :disabled="isChatLocked"
                 :class="[
-                  'flex-1 text-left px-3 py-2 text-gray-700 dark:text-gray-300',
-                  sidebarCollapsed ? 'text-center' : ''
+                  'flex-1 text-left px-3 py-2 transition-colors',
+                  sidebarCollapsed ? 'text-center' : '',
+                  isChatLocked 
+                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                    : currentSessionId === session.id
+                      ? 'text-gray-800 dark:text-gray-200 font-medium'
+                      : 'text-gray-700 dark:text-gray-300'
                 ]"
-                :title="sidebarCollapsed ? formatSessionTitle(session) : ''"
+                :title="sidebarCollapsed ? (isChatLocked ? 'Chat locked - select option first' : formatSessionTitle(session)) : ''"
               >
                 <div v-if="!sidebarCollapsed" class="flex flex-col min-w-0">
                   <span class="text-sm font-medium chat-title-truncate">{{ formatSessionTitle(session) }}</span>
@@ -449,7 +551,13 @@ onUnmounted(() => {
         <!-- New Chat Button for Mobile -->
         <button 
           @click="handleNewChat"
-          class="block w-full px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+          :disabled="isChatLocked"
+          :class="[
+            'block w-full px-3 py-2 rounded transition-colors',
+            isChatLocked 
+              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+          ]"
         >
           <span class="flex items-center">
             <font-awesome-icon :icon="['fas', 'plus']" class="mr-2 text-sm" />
@@ -465,11 +573,24 @@ onUnmounted(() => {
             <div 
               v-for="session in chatSessions" 
               :key="session.id" 
-              class="group relative flex items-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              :class="[
+                'group relative flex items-center rounded transition-colors',
+                currentSessionId === session.id 
+                  ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-gray-500 dark:border-gray-400 active-session' 
+                  : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+              ]"
             >
               <button 
                 @click="loadChatSession(session.id)"
-                class="flex-1 text-left px-3 py-2 text-gray-700 dark:text-gray-300"
+                :disabled="isChatLocked"
+                :class="[
+                  'flex-1 text-left px-3 py-2 transition-colors',
+                  isChatLocked 
+                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                    : currentSessionId === session.id
+                      ? 'text-gray-800 dark:text-gray-200 font-medium'
+                      : 'text-gray-700 dark:text-gray-300'
+                ]"
               >
                 <div class="flex flex-col min-w-0">
                   <span class="text-sm font-medium chat-title-truncate">{{ formatSessionTitle(session) }}</span>
