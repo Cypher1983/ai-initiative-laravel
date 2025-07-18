@@ -432,12 +432,12 @@ onUnmounted(() => {
           </span>
           <font-awesome-icon v-else :icon="['fas', 'plus']" class="text-lg" />
         </button>
-        
+        <div class="mb-3 border-b border-gray-200 dark:border-gray-700"></div>
 
         
         <!-- Chat History -->
-        <div v-if="chatSessions.length > 0" class="mt-4">
-          <h3 v-if="!sidebarCollapsed" class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Chat History</h3>
+        <div v-if="chatSessions.length > 0" class="mt-4 pt-3">
+          <h3 v-if="!sidebarCollapsed" class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 pb-3">Chat History</h3>
           <div v-if="isLoadingSessions" class="text-sm text-gray-500 dark:text-gray-400">Loading history...</div>
           <div v-else class="space-y-1">
             <div 
