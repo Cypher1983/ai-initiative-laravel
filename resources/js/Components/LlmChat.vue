@@ -1,7 +1,7 @@
 <template>
     <div class="min-h-full bg-gray-100 dark:bg-gray-900 flex flex-col">
       <!-- Global Lock Message - Always visible at top -->
-      <div v-if="hasPendingOptions" class="fixed top-0 left-0 right-0 z-50 bg-yellow-500 dark:bg-yellow-600 text-white px-4 py-3 shadow-lg">
+      <div v-if="hasPendingOptions" class="lock-message bg-yellow-500 dark:bg-yellow-600 text-white px-4 py-3 shadow-lg">
         <div class="max-w-6xl mx-auto flex items-center justify-center">
           <div class="flex items-center space-x-3 text-center">
             <div class="flex-shrink-0">
@@ -18,7 +18,7 @@
       </div>
   
       <!-- Chat Window -->
-      <main class="flex-1 flex flex-col items-center overflow-hidden" :class="{ 'pt-16': hasPendingOptions }">
+      <main class="flex-1 flex flex-col items-center overflow-hidden" :class="{ 'pt-0': hasPendingOptions }">
         <div class="max-w-6xl w-full flex flex-col flex-1 px-8 py-8 max-h-full">
           <!-- Loading state -->
           <div v-if="isLoadingSession" class="flex-1 flex items-center justify-center">
@@ -182,6 +182,13 @@
     window.dispatchEvent(new CustomEvent('chat-lock-state-changed', { 
       detail: { isLocked: newValue } 
     }))
+    
+    // Prevent body scrolling when lock message is shown
+    if (newValue) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
   })
 
   // Create a new chat session by default
@@ -938,5 +945,20 @@ ol li{
   .confirm-button, .regenerate-button {
     position: relative;
     z-index: 20;
+  }
+
+  /* Lock message styling */
+  .lock-message {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .lock-message {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   </style> 

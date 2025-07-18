@@ -534,7 +534,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Content -->
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1">
         <slot />
       </main>
 
