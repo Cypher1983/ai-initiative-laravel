@@ -643,6 +643,34 @@
   </script>
 
   <style>
+  /* Ensures markdown and code blocks wrap and do not overflow */
+  .markdown-content {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+  }
+  .markdown-content pre, .markdown-content code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Ensure all markdown content is properly contained */
+  .bg-gray-200, .bg-gray-700 {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Target the assistant message content specifically */
+  .bg-gray-200 *, .bg-gray-700 * {
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
   /* Custom scrollbar styles */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -691,17 +719,27 @@ pre, code {
   font-size: 0.95em;
   font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
   overflow-x: auto;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 /* Dark mode code blocks */
 .dark pre, .dark code {
   background: #1f2937;
   color: #f3f4f6;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 p{
   line-height: 1.25rem;
   margin-top: 1.5rem !important;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .multiple-options p:first-child, .option-radio{
@@ -710,6 +748,9 @@ p{
 
 pre, p {
   margin: 0.5em 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 ol{
@@ -726,9 +767,33 @@ ol li{
   color: #f3f4f6;
 }
 
-.dark ol li {
-  color: #f3f4f6;
-}
+  .dark ol li {
+    color: #f3f4f6;
+  }
+
+  /* Ensure all markdown elements are properly contained */
+  .bg-gray-200 div, .bg-gray-700 div {
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+
+  /* Handle long URLs and text in markdown */
+  .bg-gray-200 a, .bg-gray-700 a {
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure tables don't overflow */
+  .bg-gray-200 table, .bg-gray-700 table {
+    max-width: 100%;
+    table-layout: fixed;
+  }
+
+  .bg-gray-200 td, .bg-gray-200 th, .bg-gray-700 td, .bg-gray-700 th {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
 
   /* Multiple options styling */
   .option-container {
